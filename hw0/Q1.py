@@ -16,7 +16,7 @@ for word in wordlist:
 
 with open("Q1.txt", "w") as fout:
     for idx, obj in enumerate(out):
-        if idx != len(out):
+        if idx != len(out)-1:
             print("%s %d %d" % (obj['word'], idx, obj['count']), file=fout)
         else:
             # Seems not necessary
