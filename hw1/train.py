@@ -39,17 +39,20 @@ def Grad_Des():
         if i % (iteration // 10) == 0:
             print("\b\b\b\b%3d%%" % (i*100/iteration), end='')
             sys.stdout.flush()
-        elif i == iteration-1:
+        if i == iteration-1:
             print("\b\b\b\b\033[K", end='')
             sys.stdout.flush()
 
         b_grad = 0.0
         w_grad = np.zeros(train.inputs.shape[1])
+        # f(x) = b + w1x1 + w2x2 + Lambda(w1^2 + w2^2)
+        # Loss = variance + lambda wi^2
         for n in range(train.labels.shape[0]):
             yn = train.labels[n][0]
             Loss_deri = 2.0 * (yn - b - np.dot(w, train.inputs[n]))
             b_grad = b_grad - Loss_deri
-            w_grad = [w_grad_n - Loss_deri * xn for w_grad_n, xn in zip(w_grad, train.inputs[n])]
+            w_grad = [w_grad[k] - Loss_deri * train.inputs[n][k] + 2*Lambda*w[k] for k in range(len(w))]
+            # w_grad = [w_grad_n - Loss_deri * xn for w_grad_n, xn in zip(w_grad, train.inputs[n])]
 
         lr_b = lr_b + b_grad ** 2
         lr_w = [lr_w_n + w_grad_n ** 2 for lr_w_n, w_grad_n in zip(lr_w, w_grad)]
