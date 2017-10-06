@@ -11,18 +11,17 @@ class Dataset:
 
 train = test = None
 hour = 9
-onlypm25 = True
+onlypm25 = False
 train_all = False
 save_model = False
 Lambda = 0
 
 # ydata = b + w * xdata + lambda(x**2)
-dimension = 162
 b = -120    # 11
 # w = -4  # 0.46
-w = np.zeros(dimension)
+w = None
 lr = 1
-iteration = 10
+iteration = 1000
 
 # Store initial values for plotting
 b_history = [b]
@@ -30,14 +29,22 @@ w_history = [w]
 
 # Custom learning rate
 lr_b = 0
-lr_w = np.zeros(dimension)
+lr_w = None
 
 # Iterations
 def Grad_Des():
-    global dimension, b, w, lr, iteration, b_history, w_history, lr_b, lr_w
+    global b, w, lr, iteration, b_history, w_history, lr_b, lr_w
+    import sys
     for i in range(iteration):
+        if i % (iteration // 10) == 0:
+            print("\b\b\b\b%3d%%" % (i*100/iteration), end='')
+            sys.stdout.flush()
+        elif i == iteration-1:
+            print("\b\b\b\b\033[K", end='')
+            sys.stdout.flush()
+
         b_grad = 0.0
-        w_grad = np.zeros(dimension)
+        w_grad = np.zeros(train.inputs.shape[1])
         for n in range(train.labels.shape[0]):
             yn = train.labels[n][0]
             Loss_deri = 2.0 * (yn - b - np.dot(w, train.inputs[n]))
@@ -48,13 +55,13 @@ def Grad_Des():
         lr_w = [lr_w_n + w_grad_n ** 2 for lr_w_n, w_grad_n in zip(lr_w, w_grad)]
         # Update parameters.
         b = b - lr/np.sqrt(lr_b) * b_grad
-        w = [w[n] - lr/np.sqrt(lr_w[n]) * w_grad[n] for n in range(dimension)]
+        w = [w[n] - lr/np.sqrt(lr_w[n]) * w_grad[n] for n in range(train.inputs.shape[1])]
         # Store parameters.
         b_history.append(b)
         w_history.append(w)
 
 def main():
-    global train, test, hour, onlypm25, train_all, Lambda, save_model
+    global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w
 
     s = input('select\toption\n* 0\ttrain 70% data\n  1\ttrain all data\nYour choice? ')
     if s and int(s) == 1:
@@ -68,7 +75,7 @@ def main():
     s = input('select\thour\n  0\t5hr\n* 1\t9hr\nYour choice? ')
     if s and int(s) == 0:
         hour = 5
-    s = input('select\toption\n  0\tonly pm2.5\n* 1\tall feature\nYour choice? ')
+    s = input('select\toption\n  0\tonly pm2.5\n* 1\tall features\nYour choice? ')
     if s and int(s) == 0:
         onlypm25 = True
 
@@ -88,21 +95,46 @@ def main():
     x_data_byday = [[float(j.replace('NR', '0')) for j in i] for i in x_data]
     x_data = []
     y_data = []
-    for i in range(len(x_data_byday) - 9):
-        y_data.append([x_data_byday[i+9][9]])
-        x_data.append(x_data_byday[i])
-        for j in range(1, 9):
-            x_data[i].extend(x_data_byday[i+j])
+    for i in range(len(x_data_byday) - hour):
+        y_data.append([x_data_byday[i+hour][9]])
+        if onlypm25:
+            x_data.append([x_data_byday[i][9]])
+            for j in range(1, hour):
+                x_data[i].extend([x_data_byday[i+j][9]])
+        else:
+            x_data.append(x_data_byday[i])
+            for j in range(1, hour):
+                x_data[i].extend(x_data_byday[i+j])
+
 
     combined = list(zip(x_data, y_data))
     random.shuffle(combined)
     x_data[:], y_data[:] = zip(*combined)
     x_data = np.array(x_data)
     y_data = np.array(y_data)
-    split_idx = len(x_data)*7//10
-    train = Dataset(x_data[:split_idx], y_data[:split_idx])
-    test = Dataset(x_data[split_idx:], y_data[split_idx:])
+    if train_all:
+        train = Dataset(x_data, y_data)
+    else:
+        split_idx = len(x_data)*7//10
+        train = Dataset(x_data[:split_idx], y_data[:split_idx])
+        test = Dataset(x_data[split_idx:], y_data[split_idx:])
+    w = np.zeros(train.inputs.shape[1])
+    lr_w = np.zeros(train.inputs.shape[1])
     Grad_Des()
+    if not train_all:
+        L = 0
+        for Mx, My in zip(test.inputs, test.labels):
+            y_ = My[0]
+            L += (y_ - b - np.dot(Mx, w)) ** 2
+        L /= test.inputs.shape[0]
+        print("Loss: %d" % L)
+    if save_model:
+        name = ''
+        name += ['features', 'pm25'][onlypm25]
+        name += ['-70', '-100'][train_all]
+        name += "-%dhr" % hour
+        name += '.npz'
+        np.savez(name, b=b, w=w)
 
 if __name__ == '__main__':
     main()
