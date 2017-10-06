@@ -1,39 +1,28 @@
 #!/usr/bin/env python3
 from pandas import read_csv
 import numpy as np
+import random
 
 pm25 = 'input_data/train.csv'
-try:
-    df = read_csv(pm25, encoding='big5')
-except UnicodeDecodeError:
-    df = read_csv(pm25, encoding='utf8')
+class Dataset:
+    def __init__(self, x, y):
+        self.inputs = x
+        self.labels = y
 
-raw = df.values.tolist()
-x_data = []
-for i in range(0, len(raw), 18):
-    for j in range(24):
-        x_data.append([raw[i][j+3]])
-        for k in range(1, 18):
-            x_data[i//18*24+j].extend([raw[i + k][j+3]])
+train = test = None
+hour = 9
+onlypm25 = True
+train_all = False
+save_model = False
+Lambda = 0
 
-x_data_byday = [[float(j.replace('NR', '-1')) for j in i] for i in x_data]
-x_data = []
-y_data = []
-for i in range(len(x_data_byday) - 9):
-    y_data.append([x_data_byday[i+9][9]])
-    x_data.append(x_data_byday[i])
-    for j in range(1, 9):
-        x_data[i].extend(x_data_byday[i+j])
-x_data = np.array(x_data)
-y_data = np.array(y_data)
-
-# ydata = b + w * xdata
+# ydata = b + w * xdata + lambda(x**2)
 dimension = 162
 b = -120    # 11
 # w = -4  # 0.46
 w = np.zeros(dimension)
 lr = 1
-iteration = 100000
+iteration = 10
 
 # Store initial values for plotting
 b_history = [b]
@@ -44,41 +33,76 @@ lr_b = 0
 lr_w = np.zeros(dimension)
 
 # Iterations
-for i in range(iteration):
-    b_grad = 0.0
-    w_grad = np.zeros(dimension)
-    for n in range(len(x_data)):
-        yn = y_data[n][0]
-        Loss_deri = 2.0 * (yn - b - np.dot(w, x_data[n]))
-        b_grad = b_grad - Loss_deri
-        w_grad = [w_grad_n - Loss_deri * xn for w_grad_n, xn in zip(w_grad, x_data[n])]
+def Grad_Des():
+    global dimension, b, w, lr, iteration, b_history, w_history, lr_b, lr_w
+    for i in range(iteration):
+        b_grad = 0.0
+        w_grad = np.zeros(dimension)
+        for n in range(train.labels.shape[0]):
+            yn = train.labels[n][0]
+            Loss_deri = 2.0 * (yn - b - np.dot(w, train.inputs[n]))
+            b_grad = b_grad - Loss_deri
+            w_grad = [w_grad_n - Loss_deri * xn for w_grad_n, xn in zip(w_grad, train.inputs[n])]
 
-    lr_b = lr_b + b_grad ** 2
-    lr_w = [lr_w_n + w_grad_n ** 2 for lr_w_n, w_grad_n in zip(lr_w, w_grad)]
-    # Update parameters.
-    b = b - lr/np.sqrt(lr_b) * b_grad
-    w = [w[n] - lr/np.sqrt(lr_w[n]) * w_grad[n] for n in range(dimension)]
-    # Store parameters.
-    b_history.append(b)
-    w_history.append(w)
+        lr_b = lr_b + b_grad ** 2
+        lr_w = [lr_w_n + w_grad_n ** 2 for lr_w_n, w_grad_n in zip(lr_w, w_grad)]
+        # Update parameters.
+        b = b - lr/np.sqrt(lr_b) * b_grad
+        w = [w[n] - lr/np.sqrt(lr_w[n]) * w_grad[n] for n in range(dimension)]
+        # Store parameters.
+        b_history.append(b)
+        w_history.append(w)
 
-print("b: %d\nw: %s" % (b, w))
+def main():
+    global train, test, hour, onlypm25, train_all, Lambda, save_model
 
-# # brute force
-# # Store all variance
-# try_b = np.arange(-200, -100, 1)
-# try_w1 = np.arange(-5, 5, 0.1)
-# Loss = np.zeros((len(try_b), len(try_w1)))
-# X, Y = np.meshgrid(x, y)
-# for i in range(len(try_b)):
-#     for j in range(len(try_w1)):
-#         b = try_b[i]
-#         w1 = try_w1[i]
-#         Loss[j][i] = 0
-#         data_amount = len(x_data) - 9
-#
-#         # calculate variance
-#         for n in range(data_amount):
-#             wx_sum = w1 * x_data[29][n] # w * x_data[n]
-#             Loss[j][i] = Loss[j][i] + (y_data[n] - b - wx_sum) ** 2
-#         Loss[j][i] = Loss[j][i]/len(data_amount)
+    s = input('select\toption\n* 0\ttrain 70% data\n  1\ttrain all data\nYour choice? ')
+    if s and int(s) == 1:
+        train_all = True
+    s = input('select\toption\n* 0\tdon\'t save model\n  1\tsave model\nYour choice? ')
+    if s and int(s) == 1:
+        save_model = True
+    s = input('select\tlambda\n* 0\t0\n  1\t1\n  2\t10\n  3\t100\n  4\t1000\n  5\t10000\n  6\t100000\nYour choice? ')
+    if s and int(s) >= 1:
+        Lambda = 10 ** (int(s)-1)
+    s = input('select\thour\n  0\t5hr\n* 1\t9hr\nYour choice? ')
+    if s and int(s) == 0:
+        hour = 5
+    s = input('select\toption\n  0\tonly pm2.5\n* 1\tall feature\nYour choice? ')
+    if s and int(s) == 0:
+        onlypm25 = True
+
+    try:
+        df = read_csv(pm25, encoding='big5')
+    except UnicodeDecodeError:
+        df = read_csv(pm25, encoding='utf8')
+
+    raw = df.values.tolist()
+    x_data = []
+    for i in range(0, len(raw), 18):
+        for j in range(24):
+            x_data.append([raw[i][j+3]])
+            for k in range(1, 18):
+                x_data[i//18*24+j].extend([raw[i + k][j+3]])
+
+    x_data_byday = [[float(j.replace('NR', '0')) for j in i] for i in x_data]
+    x_data = []
+    y_data = []
+    for i in range(len(x_data_byday) - 9):
+        y_data.append([x_data_byday[i+9][9]])
+        x_data.append(x_data_byday[i])
+        for j in range(1, 9):
+            x_data[i].extend(x_data_byday[i+j])
+
+    combined = list(zip(x_data, y_data))
+    random.shuffle(combined)
+    x_data[:], y_data[:] = zip(*combined)
+    x_data = np.array(x_data)
+    y_data = np.array(y_data)
+    split_idx = len(x_data)*7//10
+    train = Dataset(x_data[:split_idx], y_data[:split_idx])
+    test = Dataset(x_data[split_idx:], y_data[split_idx:])
+    Grad_Des()
+
+if __name__ == '__main__':
+    main()
