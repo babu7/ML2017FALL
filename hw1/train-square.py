@@ -143,7 +143,7 @@ def main():
         split_idx = len(x_data)*7//10
         train = Dataset(x_data[:split_idx], y_data[:split_idx])
         test = Dataset(x_data[split_idx:], y_data[split_idx:])
-    w = np.zeros(train.inputs.shape[1]) if not w else w
+    w = np.zeros(train.inputs.shape[1]) if w is None else w
     lr_w = np.zeros(train.inputs.shape[1])
     print("train shape: %s" % str(train.inputs.shape))
     print("=== Error before training ===")
