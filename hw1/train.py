@@ -63,6 +63,15 @@ def Grad_Des():
         b_history.append(b)
         w_history.append(w)
 
+def calc_error(dataset):
+    global w, b
+    L = 0
+    for Mx, My in zip(dataset.inputs, dataset.labels):
+        y_ = My[0]
+        L += (y_ - b - np.dot(Mx, w)) ** 2
+    L /= dataset.inputs.shape[0]
+    return L
+
 def main():
     global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w
 
@@ -96,19 +105,19 @@ def main():
                 x_data[i//18*24+j].extend([raw[i + k][j+3]])
 
     x_data_byday = [[float(j.replace('NR', '0')) for j in i] for i in x_data]
+    x_data_byday = np.array(x_data_byday)
     x_data = []
     y_data = []
     for i in range(len(x_data_byday) - hour):
         y_data.append([x_data_byday[i+hour][9]])
         if onlypm25:
-            x_data.append([x_data_byday[i][9]])
+            x_data.append(list([x_data_byday[i][9]]))
             for j in range(1, hour):
                 x_data[i].extend([x_data_byday[i+j][9]])
         else:
-            x_data.append(x_data_byday[i])
+            x_data.append(list(x_data_byday[i]))
             for j in range(1, hour):
                 x_data[i].extend(x_data_byday[i+j])
-
 
     combined = list(zip(x_data, y_data))
     random.shuffle(combined)
@@ -123,14 +132,16 @@ def main():
         test = Dataset(x_data[split_idx:], y_data[split_idx:])
     w = np.zeros(train.inputs.shape[1])
     lr_w = np.zeros(train.inputs.shape[1])
+    print("train shape: %s" % str(train.inputs.shape))
+    print("=== Error before training ===")
+    print("train dataset: %.2f" % calc_error(train))
+    if test:
+        print("test  dataset: %.2f" % calc_error(test))
     Grad_Des()
-    if not train_all:
-        L = 0
-        for Mx, My in zip(test.inputs, test.labels):
-            y_ = My[0]
-            L += (y_ - b - np.dot(Mx, w)) ** 2
-        L /= test.inputs.shape[0]
-        print("Loss: %d" % L)
+    print("=== Error after training ===")
+    print("train dataset: %.2f" % calc_error(train))
+    if test:
+        print("test  dataset: %.2f" % calc_error(test))
     if save_model:
         name = ''
         name += ['features', 'pm25'][onlypm25]
