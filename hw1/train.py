@@ -73,14 +73,11 @@ def calc_error(dataset):
     return L
 
 def main():
-    global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w
+    global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w, b
 
     s = input('select\toption\n* 0\ttrain 70% data\n  1\ttrain all data\nYour choice? ')
     if s and int(s) == 1:
         train_all = True
-    s = input('select\toption\n* 0\tdon\'t save model\n  1\tsave model\nYour choice? ')
-    if s and int(s) == 1:
-        save_model = True
     s = input('select\tlambda\n* 0\t0\n  1\t1\n  2\t10\n  3\t100\n  4\t1000\n  5\t10000\n  6\t100000\nYour choice? ')
     if s and int(s) >= 1:
         Lambda = 10 ** (int(s)-1)
@@ -90,6 +87,14 @@ def main():
     s = input('select\toption\n  0\tonly pm2.5\n* 1\tall features\nYour choice? ')
     if s and int(s) == 0:
         onlypm25 = True
+    s = input('Load trained model? (y/n): ')
+    if s.lower() == 'y':
+        s = input('file name: ')
+        try:
+            w = np.load(s)['w']
+            b = np.load(s)['b']
+        except FileNotFoundError:
+            print('File Not Found, ignore')
 
     try:
         df = read_csv(pm25, encoding='big5')
@@ -130,7 +135,7 @@ def main():
         split_idx = len(x_data)*7//10
         train = Dataset(x_data[:split_idx], y_data[:split_idx])
         test = Dataset(x_data[split_idx:], y_data[split_idx:])
-    w = np.zeros(train.inputs.shape[1])
+    w = np.zeros(train.inputs.shape[1]) if not w else w
     lr_w = np.zeros(train.inputs.shape[1])
     print("train shape: %s" % str(train.inputs.shape))
     print("=== Error before training ===")
@@ -142,11 +147,16 @@ def main():
     print("train dataset: %.2f" % calc_error(train))
     if test:
         print("test  dataset: %.2f" % calc_error(test))
+    s = input('select\toption\n* 0\tdon\'t save model\n  1\tsave model\nYour choice? ')
+    if s and int(s) == 1:
+        save_model = True
     if save_model:
+        s = input('model version: ')
         name = ''
         name += ['features', 'pm25'][onlypm25]
         name += ['-70', '-100'][train_all]
         name += "-%dhr" % hour
+        name  = name + '-' + s if s else name
         name += '.npz'
         np.savez(name, b=b, w=w)
 
