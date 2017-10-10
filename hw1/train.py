@@ -15,21 +15,23 @@ onlypm25 = False
 train_all = False
 save_model = False
 Lambda = 0
+power = 1
 
 # ydata = b + w * xdata + lambda(x**2)
-b = -120    # 11
-# w = -4  # 0.46
 w = None
 lr = 1
 iteration = 1000
 
-# Store initial values for plotting
-b_history = [b]
-w_history = [w]
-
 # Custom learning rate
 lr_b = 0
 lr_w = None
+
+def close_form_sol():
+    global w, lr, iteration, b_history, w_history, lr_b, lr_w
+    from numpy.linalg import inv
+    x = train.inputs
+    y = train.labels
+    w = np.matmul(np.matmul(inv(np.matmul(x.transpose(), x)), x.transpose()), y)
 
 # Iterations
 def Grad_Des():
@@ -49,7 +51,7 @@ def Grad_Des():
         # Loss = variance + lambda wi^2
         for n in range(train.labels.shape[0]):
             yn = train.labels[n][0]
-            Loss_deri = 2.0 * (yn - b - np.dot(w, train.inputs[n]))
+            Loss_deri = 2.0 * (yn - b - np.matmul(train.inputs, w).sum())
             b_grad = b_grad - Loss_deri
             w_grad = [w_grad[k] - Loss_deri * train.inputs[n][k] + 2*Lambda*w[k] for k in range(len(w))]
             # w_grad = [w_grad_n - Loss_deri * xn for w_grad_n, xn in zip(w_grad, train.inputs[n])]
@@ -59,25 +61,25 @@ def Grad_Des():
         # Update parameters.
         b = b - lr/np.sqrt(lr_b) * b_grad
         w = [w[n] - lr/np.sqrt(lr_w[n]) * w_grad[n] for n in range(train.inputs.shape[1])]
-        # Store parameters.
-        b_history.append(b)
-        w_history.append(w)
 
 def calc_error(dataset):
-    global w, b
+    global w
     L = 0
     for Mx, My in zip(dataset.inputs, dataset.labels):
         y_ = My[0]
-        L += (y_ - b - np.dot(Mx, w)) ** 2
+        L += (y_ - np.dot(Mx, w)) ** 2
     L /= dataset.inputs.shape[0]
     return L
 
 def main():
-    global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w, b
+    global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w, power
 
     s = input('select\toption\n* 0\ttrain 70% data\n  1\ttrain all data\nYour choice? ')
     if s and int(s) == 1:
         train_all = True
+    s = input('power of x? (*1 or 2): ')
+    if s and int(s) == 2:
+        power = 2
     s = input('select\tlambda\n* 0\t0\n  1\t1\n  2\t10\n  3\t100\n  4\t1000\n  5\t10000\n  6\t100000\nYour choice? ')
     if s and int(s) >= 1:
         Lambda = 10 ** (int(s)-1)
@@ -87,12 +89,11 @@ def main():
     s = input('select\toption\n  0\tonly pm2.5\n* 1\tall features\nYour choice? ')
     if s and int(s) == 0:
         onlypm25 = True
-    s = input('Load trained model? (y/n): ')
+    s = input('Load trained model? (y/*n): ')
     if s.lower() == 'y':
         s = input('file name: ')
         try:
             w = np.load(s)['w']
-            b = np.load(s)['b']
         except FileNotFoundError:
             print('File Not Found, ignore')
 
@@ -110,19 +111,26 @@ def main():
                 x_data[i//18*24+j].extend([raw[i + k][j+3]])
 
     x_data_byday = [[float(j.replace('NR', '0')) for j in i] for i in x_data]
-    x_data_byday = np.array(x_data_byday)
     x_data = []
     y_data = []
     for i in range(len(x_data_byday) - hour):
         y_data.append([x_data_byday[i+hour][9]])
+        # x_data
+        # [[1, hr0 temp, hr0 ch4, ... , hr1 ... , hr0 temp**2, hr0 ch4**2, ...], [next data...]]
+        #   ^ bias                                ^^^ this may not exist with lower power
+        x_data.append([1])
         if onlypm25:
-            x_data.append(list([x_data_byday[i][9]]))
-            for j in range(1, hour):
+            for j in range(0, hour):
                 x_data[i].extend([x_data_byday[i+j][9]])
+            if power == 2:
+                for j in range(0, hour):
+                    x_data[i].extend([x_data_byday[i+j][9]**2])
         else:
-            x_data.append(list(x_data_byday[i]))
-            for j in range(1, hour):
+            for j in range(0, hour):
                 x_data[i].extend(x_data_byday[i+j])
+            if power == 2:
+                for j in range(0, hour):
+                    x_data[i].extend(np.square(x_data_byday[i+j]))
 
     combined = list(zip(x_data, y_data))
     random.shuffle(combined)
@@ -142,7 +150,8 @@ def main():
     print("train dataset: %.2f" % calc_error(train))
     if test:
         print("test  dataset: %.2f" % calc_error(test))
-    Grad_Des()
+    # Grad_Des()
+    close_form_sol()
     print("=== Error after training ===")
     print("train dataset: %.2f" % calc_error(train))
     if test:
@@ -156,9 +165,10 @@ def main():
         name += ['features', 'pm25'][onlypm25]
         name += ['-70', '-100'][train_all]
         name += "-%dhr" % hour
+        name += "-x%d" % power
         name  = name + '-' + s if s else name
-        name += '.npz'
-        np.savez(name, b=b, w=w)
+        name += '.npy'
+        np.save(name, w)
 
 if __name__ == '__main__':
     main()

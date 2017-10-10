@@ -15,16 +15,17 @@ for i in range(0, len(raw), 18):
     for j in range(9):
         for k in range(18):
             if j == 0 and k == 0:
-                x_data.append([raw[i+k][j+2]])
-            else:
-                x_data[i//18].extend([raw[i+k][j+2]])
+                x_data.append(['1'])
+            x_data[i//18].extend([raw[i+k][j+2]])
 x_data= [[float(j.replace('NR', '0')) for j in i] for i in x_data]
+for i in x_data:
+    i.extend(np.array(i)[1:] ** 2)
 x_data = np.array(x_data)
 
-npz = np.load('features-100-9hr.npz')
-b = npz['b']
-w = npz['w']
-y = [np.dot(w, x) + b for x in x_data]
+w = np.load(sys.argv[3])
+print(x_data.shape)
+print(w.shape)
+y = [np.matmul(x, w).sum() for x in x_data]
 
 f = open(sys.argv[2], 'w')
 print("id,value", file=f)
