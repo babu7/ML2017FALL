@@ -2,8 +2,6 @@
 from pandas import read_csv
 import numpy as np
 from numpy.linalg import inv
-import random
-import math
 import os
 
 pm25 = 'input_data/train.csv'
@@ -29,31 +27,30 @@ iteration = 1000
 lr_w = None
 
 def closed_form_sol():
-    global w, lr, iteration, w_history, lr_w
+    global w
     x = train.inputs
     y = train.labels
-    w = np.matmul(np.matmul(inv(np.matmul(x.transpose(), x)), x.transpose()), y)
+    w = np.matmul(np.matmul(inv(np.matmul(x.T, x)), x.T), y)
 
 # Iterations
 def Grad_Des():
-    global w, lr, iteration, w_history, lr_w
+    global w, lr, iteration, lr_w
     l_rate = 10
     repeat = 10000
     x = train.inputs
-    y = train.labels.flatten()
-    x_t = x.transpose()
-    s_gra = np.zeros(len(x[0]))
+    y = train.labels
+    s_gra = np.zeros((x.shape[1], 1))
 
     for i in range(repeat):
-        hypo = np.dot(x,w)
+        hypo = np.matmul(x,w)
         loss = hypo - y
-        cost = np.sum(loss**2) / len(x)
-        cost_a  = math.sqrt(cost)
-        gra = np.dot(x_t,loss)
+        cost = np.sum(loss**2) / x.shape[0]
+        cost_a  = np.sqrt(cost)
+        gra = np.matmul(x.T,loss)
         s_gra += gra**2
         ada = np.sqrt(s_gra)
         w = w - l_rate * gra/ada
-        print ('\riteration: %d | Cost: %f  ' % ( i,cost_a), end='')
+        print ('\r\033[Kiteration: %d | Cost: %f' % ( i,cost_a), end='')
     print('')
 #     for i in range(iteration):
 #         if i % (iteration // 10) == 0:
@@ -80,13 +77,13 @@ def Grad_Des():
 #         w = [w[n] - lr/np.sqrt(lr_w[n]) * w_grad[n] for n in range(train.inputs.shape[1])]
 
 def calc_error(dataset):
-    global w
-    L = 0
-    for Mx, My in zip(dataset.inputs, dataset.labels):
-        y_ = My[0]
-        L += (y_ - np.dot(Mx, w)) ** 2
-    L /= dataset.inputs.shape[0]
-    return L
+    x = dataset.inputs
+    y = dataset.labels
+    hypo = np.matmul(x,w)
+    loss = hypo - y
+    cost = np.sum(loss**2) / x.shape[0]
+    cost_a  = np.sqrt(cost)
+    return cost_a
 
 def main():
     global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w, power
@@ -162,22 +159,22 @@ def main():
     if train_all:
         train = Dataset(x_data, y_data)
     else:
-        split_idx = len(x_data)*7//10
+        split_idx = x_data.shape[0]*7//10
         train = Dataset(x_data[:split_idx], y_data[:split_idx])
         test = Dataset(x_data[split_idx:], y_data[split_idx:])
-    w = np.zeros(train.inputs.shape[1]) if w is None else w
-    lr_w = np.zeros(train.inputs.shape[1])
+    w = np.zeros((train.inputs.shape[1], 1)) if w is None else w
+    lr_w = np.zeros((train.inputs.shape[1], 1))
     print("train shape: %s" % str(train.inputs.shape))
     print("=== Error before training ===")
-    print("train dataset: %.2f" % calc_error(train))
+    print("train dataset: %f" % calc_error(train))
     if test:
-        print("test  dataset: %.2f" % calc_error(test))
-    # Grad_Des()
-    closed_form_sol()
+        print("test  dataset: %f" % calc_error(test))
+    Grad_Des()
+    # closed_form_sol()
     print("=== Error after training ===")
-    print("train dataset: %.2f" % calc_error(train))
+    print("train dataset: %f" % calc_error(train))
     if test:
-        print("test  dataset: %.2f" % calc_error(test))
+        print("test  dataset: %f" % calc_error(test))
     s = input('select\toption\n* 0\tdon\'t save model\n  1\tsave model\nYour choice? ')
     if s and int(s) == 1:
         save_model = True
