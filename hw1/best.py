@@ -13,16 +13,6 @@ try:
 except UnicodeDecodeError:
     df = read_csv(sys.argv[1], encoding='utf8', header=None)
 
-raw = df.values.tolist()
-x_data = []
-
-for i in range(0, len(raw), 18):
-    for j in range(9):
-        for k in range(18):
-            if j == 0 and k == 0:
-                x_data.append(['1'])
-            x_data[i//18].extend([raw[i+k][j+2]])
-
 try:
     model_nr = os.environ['model_nr']
 except:
@@ -31,13 +21,31 @@ try:
     model_power = int(os.environ['model_power'])
 except:
     model_power = 1
+onlypm25 = False
+hour = 9
 
-x_data= [[float(j.replace('NR', model_nr)) for j in i] for i in x_data]
-if model_power == 2:
-    for i in range(len(x_data)):
-        x_data[i] = np.array(x_data[i])
-        x_data[i] = np.append(x_data[i], x_data[i][1:]**2)
+raw = df.values.tolist()
+ids = [raw[i][0] for i in range(0, len(raw), 18)]
+raw = [i[2:] for i in raw]
+raw = [[float(j.replace('NR', model_nr)) for j in i] for i in raw]
+raw = np.array(raw)
+# x[number][hour][feature]
+x_n_hr_f = []
+for i in range(0, len(raw), 18):
+    x_n_hr_f.append(raw[i:i+18,:].T)
+x_data = []
+for i in range(len(x_n_hr_f)):
+    x_hr_f = x_n_hr_f[i]
+    x_data.append([1])
+    if onlypm25:
+        toadd = x_hr_f[0:hour,9]
+    else:
+        toadd = x_hr_f[0:hour,:].flatten()
+    x_data[i].extend(toadd)
+    if model_power == 2:
+        x_data[i].extend(toadd**2)
 x_data = np.array(x_data)
+print("x_data shape %s" % str(x_data.shape))
 
 w = np.load(sys.argv[3])
 if argc == 5:
@@ -50,4 +58,4 @@ y = np.matmul(x_data, w).flatten()
 f = open(sys.argv[2], 'w')
 print("id,value", file=f)
 for i in range(len(y)):
-    print("%s,%f" % (raw[i*18][0], y[i]), file=f)
+    print("%s,%f" % (ids[i], y[i]), file=f)
