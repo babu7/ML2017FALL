@@ -203,6 +203,7 @@ def main():
         name += ['-70', '-100'][train_all]
         name += "-%dhr" % hour
         name += "-x%d" % power
+        name += ("-ld%f" % Lambda).rstrip('0').rstrip('.')
         name += '-nr' + model_nr
         name  = name + '-' + s if s else name
         name += '.npy'

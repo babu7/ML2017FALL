@@ -21,7 +21,14 @@ try:
     model_power = int(os.environ['model_power'])
 except:
     model_power = 1
-onlypm25 = False
+try:
+    onlypm25 = os.environ['pm25']
+except:
+    onlypm25 = 'f'
+if onlypm25.lower() == 't':
+    onlypm25 = True
+else:
+    onlypm25 = False
 hour = 9
 
 raw = df.values.tolist()
@@ -38,9 +45,9 @@ for i in range(len(x_n_hr_f)):
     x_hr_f = x_n_hr_f[i]
     x_data.append([1])
     if onlypm25:
-        toadd = x_hr_f[0:hour,9]
+        toadd = x_hr_f[9-hour:,9]
     else:
-        toadd = x_hr_f[0:hour,:].flatten()
+        toadd = x_hr_f[9-hour:,:].flatten()
     x_data[i].extend(toadd)
     if model_power == 2:
         x_data[i].extend(toadd**2)
