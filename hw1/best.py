@@ -4,6 +4,10 @@ import sys
 import os
 import numpy as np
 
+argc = len(sys.argv)
+# 0: ./best.py   1: test.csv   2: out.csv
+# 3: npy array
+# 4: npz array (optional)
 try:
     df = read_csv(sys.argv[1], encoding='big5', header=None)
 except UnicodeDecodeError:
@@ -31,6 +35,11 @@ for i in range(len(x_data)):
 x_data = np.array(x_data)
 
 w = np.load(sys.argv[3])
+if argc == 5:
+    mean = np.load(sys.argv[4])['mean']
+    sd = np.load(sys.argv[4])['sd']
+    x_data = (x_data - mean) / sd
+
 y = np.matmul(x_data, w).flatten()
 
 f = open(sys.argv[2], 'w')

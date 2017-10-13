@@ -17,6 +17,8 @@ train_all = False
 save_model = False
 Lambda = 0
 power = 1
+s_sd = None
+s_mean = None
 
 # ydata = b + w * xdata + lambda(x**2)
 w = None
@@ -36,7 +38,7 @@ def closed_form_sol():
 def Grad_Des():
     global w, lr, iteration, lr_w
     l_rate = 10
-    repeat = 10000
+    repeat = 100000
     x = train.inputs
     y = train.labels
     s_gra = np.zeros((x.shape[1], 1))
@@ -50,7 +52,7 @@ def Grad_Des():
         s_gra += gra**2
         ada = np.sqrt(s_gra)
         w = w - l_rate * gra/ada
-        print ('\r\033[Kiteration: %d | Cost: %f' % ( i,cost_a), end='')
+        # print ('\r\033[Kiteration: %d | Cost: %f' % ( i,cost_a), end='')
     print('')
 #     for i in range(iteration):
 #         if i % (iteration // 10) == 0:
@@ -85,8 +87,19 @@ def calc_error(dataset):
     cost_a  = np.sqrt(cost)
     return cost_a
 
+def feature_scaling(x):
+    global s_sd , s_mean
+    s_mean = np.mean(x, axis=0)
+    s_sd = np.std(x, axis=0)
+    # x[0] is x ** 0
+    s_mean[0] = 0
+    s_sd[0] = 1
+    x = (x - s_mean) / s_sd
+    return x
+
 def main():
     global train, test, hour, onlypm25, train_all, Lambda, save_model, w, w_grad, lr_w, power
+    scaling = False
 
     s = input('select\toption\n* 0\ttrain 70% data\n  1\ttrain all data\nYour choice? ')
     if s and int(s) == 1:
@@ -103,6 +116,9 @@ def main():
     s = input('select\toption\n  0\tonly pm2.5\n* 1\tall features\nYour choice? ')
     if s and int(s) == 0:
         onlypm25 = True
+    s = input('scaling? (y/*n): ')
+    if s.lower() == 'y':
+        scaling = True
     s = input('Load trained model? (y/*n): ')
     if s.lower() == 'y':
         s = input('file name: ')
@@ -153,6 +169,8 @@ def main():
 
     x_data = np.array(x_data)
     y_data = np.array(y_data)
+    if scaling:
+        x_data = feature_scaling(x_data)
     permutation = np.random.permutation(x_data.shape[0])
     x_data = x_data[permutation]
     y_data = y_data[permutation]
@@ -189,6 +207,9 @@ def main():
         name  = name + '-' + s if s else name
         name += '.npy'
         np.save(name, w)
+        if scaling:
+            name = name.replace('.npy', '-scaling.npz')
+            np.savez(name, mean=s_mean, sd=s_sd)
 
 if __name__ == '__main__':
     main()
