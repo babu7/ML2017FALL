@@ -48,7 +48,7 @@ def Grad_Des():
         loss = hypo - y
         cost = np.sum(loss**2) / x.shape[0]
         cost_a  = np.sqrt(cost)
-        gra = np.matmul(x.T,loss)
+        gra = np.matmul(x.T,loss) - Lambda * w
         s_gra += gra**2
         ada = np.sqrt(s_gra)
         w = w - l_rate * gra/ada
@@ -107,9 +107,9 @@ def main():
     s = input('power of x? (*1 or 2): ')
     if s and int(s) == 2:
         power = 2
-    s = input('select\tlambda\n* 0\t0\n  1\t1\n  2\t10\n  3\t100\n  4\t1000\n  5\t10000\n  6\t100000\nYour choice? ')
+    s = input('select\tlambda\n* 0\t0\n  1\t0.1\n  2\t0.01\n  3\t0.001\n  4\t0.0001\nYour choice? ')
     if s and int(s) >= 1:
-        Lambda = 10 ** (int(s)-1)
+        Lambda = 10 ** (-1*int(s))
     s = input('select\thour\n  0\t5hr\n* 1\t9hr\nYour choice? ')
     if s and int(s) == 0:
         hour = 5

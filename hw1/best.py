@@ -27,11 +27,16 @@ try:
     model_nr = os.environ['model_nr']
 except:
     model_nr = '0'
+try:
+    model_power = int(os.environ['model_power'])
+except:
+    model_power = 1
 
 x_data= [[float(j.replace('NR', model_nr)) for j in i] for i in x_data]
-for i in range(len(x_data)):
-    x_data[i] = np.array(x_data[i])
-    x_data[i] = np.append(x_data[i], x_data[i][1:]**2)
+if model_power == 2:
+    for i in range(len(x_data)):
+        x_data[i] = np.array(x_data[i])
+        x_data[i] = np.append(x_data[i], x_data[i][1:]**2)
 x_data = np.array(x_data)
 
 w = np.load(sys.argv[3])
