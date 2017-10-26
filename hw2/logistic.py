@@ -56,8 +56,8 @@ def valid(w, b, X_valid, Y_valid):
 def train(X_all, Y_all, save_dir):
     # Split a 10%-validation set from the training set
     valid_set_percentage = 0.1
-    # X_train, Y_train, X_valid, Y_valid = split_valid_set(X_all, Y_all, valid_set_percentage)
-    X_train, Y_train = X_all, Y_all
+    X_train, Y_train, X_valid, Y_valid = split_valid_set(X_all, Y_all, valid_set_percentage)
+    # X_train, Y_train = X_all, Y_all
 
     # Initiallize parameter, hyperparameter
     w = np.zeros((106,))
@@ -81,8 +81,8 @@ def train(X_all, Y_all, save_dir):
             np.savetxt(os.path.join(save_dir, 'b'), [b,])
             print('epoch avg loss = %f' % (total_loss / (float(save_param_iter) * train_data_size)))
             total_loss = 0.0
-            valid(w, b, X_train, Y_train)
-            # valid(w, b, X_valid, Y_valid)
+            # valid(w, b, X_train, Y_train)
+            valid(w, b, X_valid, Y_valid)
 
         # Random shuffle
         X_train, Y_train = _shuffle(X_train, Y_train)
@@ -99,6 +99,10 @@ def train(X_all, Y_all, save_dir):
             total_loss += cross_entropy
 
             w_grad = np.mean(-1 * X * (np.squeeze(Y) - y).reshape((batch_size,1)), axis=0)
+            # regularization
+            ld = 0.01
+            w_grad = w_grad + 2 * ld * w
+
             b_grad = np.mean(-1 * (np.squeeze(Y) - y))
 
             # SGD updating parameters
