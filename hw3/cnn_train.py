@@ -5,6 +5,7 @@ from keras.layers import Dense, Activation
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dropout
 from keras.layers import ZeroPadding2D, BatchNormalization
 from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, History
 
 class DataSet:
     def __init__(self, inputs):
@@ -20,9 +21,14 @@ def load_data():
     data.labels = npz['labels']
     return data
 
-def default_train(dataSet, optimizer = Adam()):
+def default_train(model, dataSet, epochs=3, optimizer = Adam()):
     model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-    model.fit(dataSet.inputs, dataSet.labels, batch_size=100, epochs=20, validation_split=0.3)
+
+    history = History()
+    # checkpointer = ModelCheckpoint(filepath='weighs.h5', monitor='val_loss', verbose=1, save_best_only=True)
+    checkpointer = ModelCheckpoint(filepath='weighs.h5', monitor='val_acc', verbose=1, save_best_only=True)
+    model.fit(dataSet.inputs, dataSet.labels, batch_size=128, epochs=epochs, validation_split=0.3, callbacks=[history, checkpointer])
+    return history
 
 def my_model(dataSet):
     # CNN
@@ -96,36 +102,45 @@ def AlexNet():
     model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(MaxPooling2D((2,2))) # 23
+    model.add(Dropout(0.5))
     model.add(Conv2D(128, (2, 2)))
     model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(MaxPooling2D((2,2))) # 11
+    model.add(Dropout(0.5))
     model.add(Conv2D(192, (2, 2), activation='relu'))
+    model.add(Dropout(0.5))
     model.add(Conv2D(192, (2, 2), activation='relu'))
+    model.add(Dropout(0.5))
     model.add(Conv2D(192, (2, 2))) # 7
     model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(MaxPooling2D((2,2)))
-    model.add(Dropout(0.3))
+    model.add(Dropout(0.5))
 
     model.add(Flatten())
     model.add(Dense(512))
     model.add(BatchNormalization())
     model.add(Activation('relu'))
-    model.add(Dropout(0.3))
+    model.add(Dropout(0.5))
     model.add(Dense(512))
     model.add(BatchNormalization())
     model.add(Activation('relu'))
-    model.add(Dropout(0.3))
+    model.add(Dropout(0.5))
     model.add(Dense(7))
     model.add(BatchNormalization())
     model.add(Activation('softmax'))
     return model
 
 def main():
-    face_data = load_data()
+    face = load_data()
 
-    model = train_model(face_data)
+    model = AlexNet()
+    hist = default_train(model, face)
+#     import matplotlib.pyplot as plt
+#     plt.plot(range(3), hist.history['acc'], range(3), hist.history['val_acc'])
+#     plt.show()
+
 
 if __name__ == '__main__':
     main()
