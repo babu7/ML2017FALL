@@ -5,7 +5,7 @@ from keras.layers import Dense, Activation
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dropout
 from keras.layers import ZeroPadding2D, BatchNormalization
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, History
+from keras.callbacks import ModelCheckpoint, History, EarlyStopping
 
 class DataSet:
     def __init__(self, inputs):
@@ -27,7 +27,8 @@ def default_train(model, dataSet, epochs=3, optimizer = Adam()):
     history = History()
     # checkpointer = ModelCheckpoint(filepath='weighs.h5', monitor='val_loss', verbose=1, save_best_only=True)
     checkpointer = ModelCheckpoint(filepath='weighs.h5', monitor='val_acc', verbose=1, save_best_only=True)
-    model.fit(dataSet.inputs, dataSet.labels, batch_size=128, epochs=epochs, validation_split=0.3, callbacks=[history, checkpointer])
+    earlystopping = EarlyStopping(monitor='val_acc', patience=20)
+    model.fit(dataSet.inputs, dataSet.labels, batch_size=128, epochs=epochs, validation_split=0.3, callbacks=[history, checkpointer, earlystopping])
     return history
 
 def my_model(dataSet):
@@ -119,7 +120,7 @@ def AlexNet():
     model.add(Dropout(0.5))
 
     model.add(Flatten())
-    model.add(Dense(512))
+    model.add(Dense(1024))
     model.add(BatchNormalization())
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
