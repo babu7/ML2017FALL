@@ -138,10 +138,22 @@ def main():
 
     model = AlexNet()
     hist = default_train(model, face)
-#     import matplotlib.pyplot as plt
-#     plt.plot(range(3), hist.history['acc'], range(3), hist.history['val_acc'])
-#     plt.show()
+    h = hist.history
 
+#     import matplotlib
+#     matplotlib.use('agg')
+#     import matplotlib.pyplot as plt
+#     fig, ax = plt.subplots()
+#     ax.plot(range(50), h['acc'], label='train')
+#     ax.plot(range(50), h['val_acc'], label='valid')
+#     ax.legend()
+#     ax.set_xlabel('# of epoch')
+#     ax.set_ylabel('Accuracy')
+#     ax.set_axisbelow(True)
+#     ax.yaxis.grid(color='gray', linewidth=0.3)
+#     ax.xaxis.grid(color='gray', linewidth=0.3)
+#     fig.savefig('fig.png')
+#     fig.savefig('output/train50-2.png')
 
 if __name__ == '__main__':
     main()
