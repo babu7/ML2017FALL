@@ -7,7 +7,8 @@ test = np.load('input_data/test.npz')['inputs']
 y = good_model.predict(test)
 decode = np.argmax(y, axis=1)
 
-with open('predict.csv', 'w') as f:
+import sys
+with open(sys.argv[2], 'w') as f:
     print("id,label", file=f)
     for i in range(decode.shape[0]):
         print("%d,%d" % (i, decode[i]), file=f)
