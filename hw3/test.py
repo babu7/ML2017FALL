@@ -8,7 +8,7 @@ y = good_model.predict(test)
 decode = np.argmax(y, axis=1)
 
 import sys
-with open(sys.argv[2], 'w') as f:
+with open(sys.argv[1], 'w') as f:
     print("id,label", file=f)
     for i in range(decode.shape[0]):
         print("%d,%d" % (i, decode[i]), file=f)
