@@ -20,6 +20,17 @@ class DataSet:
             valid.labels = self.labels[:p]
             self.labels = self.labels[p:]
         return valid
+    def join(self, d):
+        if d.inputs.size == 0:
+            return
+        self.inputs = np.concatenate((self.inputs, d.inputs), axis=0)
+        if self.labels is not None:
+            self.labels = np.concatenate((self.labels, d.labels), axis=0)
+    def shrink(self, rate):
+        n_s = int(self.inputs.shape[0] * rate)
+        self.inputs = self.inputs[:n_s]
+        if self.labels is not None:
+            self.labels = self.labels[:n_s]
 
 def str2ls(fname):
     s = ''
