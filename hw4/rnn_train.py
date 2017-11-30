@@ -71,6 +71,14 @@ def main():
     score, acc = model.evaluate(d1_valid.inputs, d1_valid.labels, batch_size=batch_size)
     print('Test score: %f'% score)
     print('Test accuracy: %f'% acc)
+
+    test, wdict = u.load_data('input_data/trimmed_test.txt', wdict=wdict)
+    test.inputs = sequence.pad_sequences(test.inputs, maxlen=maxlen)
+    prob = np.rint(model.predict(test.inputs)).flatten()
+    with open('predict.txt', 'w') as f:
+        print('id,label', file=f)
+        for i in range(prob.shape[0]):
+            print("%d,%.0f" % (i, prob[i]), file=f)
     return model
 
 if __name__ == '__main__':
