@@ -12,6 +12,14 @@ class DataSet:
         permutation = np.random.permutation(self.inputs.shape[0])
         self.inputs = self.inputs[permutation]
         self.labels = self.labels[permutation]
+    def split(self, valid_rate):
+        p = int(self.inputs.shape[0] * valid_rate)
+        valid = DataSet(self.inputs[:p])
+        self.inputs = self.inputs[p:]
+        if self.labels is not None:
+            valid.labels = self.labels[:p]
+            self.labels = self.labels[p:]
+        return valid
 
 def str2ls(fname):
     s = ''
@@ -24,7 +32,7 @@ def str2ls(fname):
     return datals
 
 def word2id(datals, n_word=1000, wdict=None):
-    if not wdict:
+    if wdict is None:
         flatten = [item for subls in datals for item in subls]
 
         # sort word by frequency
@@ -38,19 +46,22 @@ def word2id(datals, n_word=1000, wdict=None):
 
         wdict= {}
         for i in range(min(n_word, len(wdict_full))):
-            wdict[rankls[i][0]] = i+1
+            # preserve some token
+            # 0 for PAD
+            # 1 for OOV (out of vocabulary)
+            wdict[rankls[i][0]] = i+4
 
-    datals = [[wdict[word] if word in wdict.keys() else 0 for word in line] for line in datals]
+    datals = [[wdict[word] if word in wdict.keys() else 1 for word in line] for line in datals]
     return datals, wdict
 
-def load_data(raw_x, raw_y=None, wdict=None):
-    if not raw_y and not wdict:
+def load_data(raw_x, raw_y=None, wdict=None, num_words=1000):
+    if raw_y is None and wdict is None:
         return -1
     data_x = str2ls(raw_x)
-    data_x, wdict = word2id(data_x, 1000)
+    data_x, wdict = word2id(data_x, num_words)
     data_x = np.array(data_x)
     data_y = None
-    if raw_y:
+    if raw_y is not None:
         with open(raw_y, 'r') as f:
             data_y = f.read().splitlines()
             data_y = [int(i) for i in data_y]
