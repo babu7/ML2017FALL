@@ -28,7 +28,12 @@ def default_train(model, dataSet, epochs=3, optimizer = Adam()):
     # checkpointer = ModelCheckpoint(filepath='weighs.h5', monitor='val_loss', verbose=1, save_best_only=True)
     checkpointer = ModelCheckpoint(filepath='weighs.h5', monitor='val_acc', verbose=1, save_best_only=True)
     earlystopping = EarlyStopping(monitor='val_acc', patience=20)
-    model.fit(dataSet.inputs, dataSet.labels, batch_size=128, epochs=epochs, validation_split=0.3, callbacks=[history, checkpointer, earlystopping])
+    # plot
+    from keras.callbacks import TensorBoard
+    tbCallBack = TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
+    model.fit(dataSet.inputs, dataSet.labels, batch_size=128, epochs=epochs, validation_split=0.3, callbacks=[history, checkpointer, earlystopping, tbCallBack])
+    # end
+    # model.fit(dataSet.inputs, dataSet.labels, batch_size=128, epochs=epochs, validation_split=0.3, callbacks=[history, checkpointer, earlystopping])
     return history
 
 def my_model(dataSet):
@@ -50,6 +55,15 @@ def my_model(dataSet):
     model.add(Dropout(0.3))
     model.add(Dense(7, activation='softmax'))
     return model
+
+def DNN():
+        model = Sequential()
+        model.add(Dense(1024, activation='relu', input_shape=(48* 48,)))
+        model.add(Dense(1024, activation='relu'))
+        model.add(Dense(756, activation='relu'))
+        model.add(Dropout(0.3))
+        model.add(Dense(7, activation='softmax'))
+        return model
 
 def VGG16():
     model = Sequential()
