@@ -154,7 +154,7 @@ def main():
 
     # initial model
     print ('initial model...')
-    model = simpleRNN(args)    
+    model = simpleRNN(args)
     print (model.summary())
 
     if args.load_model is not None:
@@ -209,7 +209,7 @@ def main():
         earlystopping = EarlyStopping(monitor='val_acc', patience = 3, verbose=1, mode='max')
 
         save_path = os.path.join(save_path,'model.h5')
-        checkpoint = ModelCheckpoint(filepath=save_path, 
+        checkpoint = ModelCheckpoint(filepath=save_path,
                                      verbose=1,
                                      save_best_only=True,
                                      save_weights_only=True,
@@ -224,9 +224,9 @@ def main():
             semi_Y = np.concatenate((semi_Y, Y))
             print ('-- iteration %d  semi_data size: %d' %(i+1,len(semi_X)))
             # train
-            history = model.fit(semi_X, semi_Y, 
+            history = model.fit(semi_X, semi_Y,
                                 validation_data=(X_val, Y_val),
-                                epochs=2, 
+                                epochs=2,
                                 batch_size=args.batch_size,
                                 callbacks=[checkpoint, earlystopping] )
 
