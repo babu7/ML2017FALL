@@ -133,7 +133,6 @@ def main():
         dm.add_data('semi_data', semi_path, False)
     else:
         dm.add_data_test('test_data', test_path)
-        print(dm.get_data('test_data'))
 
     # prepare tokenizer
     print ('get Tokenizer...')
@@ -194,9 +193,8 @@ def main():
         print('predicting...')
         X = dm.get_data('test_data')
         y = model.predict(X)
-        print(y)
         y = np.rint(y.flatten())
-        with open(args.model + '_predict.txt', 'w') as f:
+        with open(args.result_path, 'w') as f:
             print('id,label', file=f)
             for i in range(y.shape[0]):
                 print("%d,%.0f" % (i, y[i]), file=f)
