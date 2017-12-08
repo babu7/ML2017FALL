@@ -3,7 +3,11 @@ from keras.preprocessing import sequence
 from keras.models import Sequential
 from keras.layers import Dense, Embedding
 from keras.layers import LSTM
+from keras.layers import Dropout
 from keras.datasets import imdb
+from keras.callbacks import ModelCheckpoint, History, EarlyStopping
+from keras.models import load_model
+
 import numpy as np
 import argparse
 import pickle
@@ -19,7 +23,7 @@ batch_size = 32
 
 def collect(model, d):
     pred = model.predict(d.inputs, batch_size=batch_size)
-    mask = np.logical_or(pred>0.9, pred<0.1).flatten()
+    mask = np.logical_or(pred>0.95, pred<0.05).flatten()
     coll = d.inputs[mask]
     pred = np.rint(pred[mask]).flatten()
     mask = np.logical_not(mask)
@@ -29,6 +33,7 @@ def collect(model, d):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('name')
     parser.add_argument("--load-pickle", action='store_true', dest='load_pkl')
     parser.add_argument("--save-pickle", action='store_true', dest='save_pkl')
     parser.add_argument("--smaller", action='store_true')
@@ -36,9 +41,11 @@ def main():
 
     print('Loading data...')
     if not args.load_pkl:
-        d1, wdict = u.load_data(train_label_x, train_label_y, num_words=10000)
+        d1, wdict = u.load_data(train_label_x, train_label_y, num_words=20000)
+        with open(args.name + '_wdict.pkl', 'wb') as f:
+            pickle.dump(wdict, f)
         d2, wdict = u.load_data(train_nolabel, wdict=wdict)
-        d1_valid = d1.split(0.3)
+        d1_valid = d1.split(0.2)
         d1.inputs = sequence.pad_sequences(d1.inputs, maxlen=maxlen)
         d1_valid.inputs = sequence.pad_sequences(d1_valid.inputs, maxlen=maxlen)
         d2.inputs = sequence.pad_sequences(d2.inputs, maxlen=maxlen)
@@ -60,7 +67,9 @@ def main():
 
     model = Sequential()
     model.add(Embedding(max_features, 128))
-    model.add(LSTM(128, dropout=0.2, recurrent_dropout=0.2))
+    model.add(LSTM(512, dropout=0.2, recurrent_dropout=0.2))
+    model.add(Dense(256))
+    model.add(Dropout(0.2))
     model.add(Dense(1, activation='sigmoid'))
 
     # try using different optimizers and different optimizer configs
@@ -68,10 +77,14 @@ def main():
                   optimizer='adam',
                   metrics=['accuracy'])
 
+    earlystopping = EarlyStopping(monitor='val_acc', patience=5)
+    checkpointer = ModelCheckpoint(filepath=args.name+'_weight.h5', monitor='val_acc', verbose=1, save_best_only=True)
+
     model.fit(d1.inputs, d1.labels,
               batch_size=batch_size,
-              epochs=3,
-              validation_data=(d1_valid.inputs, d1_valid.labels))
+              epochs=5,
+              validation_data=(d1_valid.inputs, d1_valid.labels),
+              callbacks=[earlystopping, checkpointer])
 
     # reinforce
     step = 5
@@ -81,12 +94,13 @@ def main():
         d1.join(newdata)
         model.fit(d1.inputs, d1.labels,
                   batch_size=batch_size,
-                  epochs=3,
-                  validation_data=(d1_valid.inputs, d1_valid.labels))
+                  epochs=2,
+                  validation_data=(d1_valid.inputs, d1_valid.labels),
+                  callbacks=[earlystopping, checkpointer])
 
     score, acc = model.evaluate(d1_valid.inputs, d1_valid.labels, batch_size=batch_size)
-    print('Test score: %f'% score)
-    print('Test accuracy: %f'% acc)
+    print('Valid loss: %f'% score)
+    print('Valid accuracy: %f'% acc)
 
     if not args.load_pkl:
         test, wdict = u.load_data('input_data/trimmed_test.txt', wdict=wdict)
@@ -100,8 +114,9 @@ def main():
 
     print('test shape: %s' % str(test.inputs.shape))
     print('Predicting...')
+    model = load_model(args.name+'_weight.h5')
     prob = np.rint(model.predict(test.inputs)).flatten()
-    with open('predict.txt', 'w') as f:
+    with open(args.name+'_predict.txt', 'w') as f:
         print('id,label', file=f)
         for i in range(prob.shape[0]):
             print("%d,%.0f" % (i, prob[i]), file=f)
