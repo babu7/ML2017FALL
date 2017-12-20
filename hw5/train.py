@@ -51,20 +51,6 @@ def get_emb(model):
     np.save('user_emb.npy', user_emb)
     np.save('movie_emb.npy', movie_emb)
 
-def load_test(filename='input_data/test.csv'):
-    lines = open(filename).read().rstrip().split('\n')[1:]
-    lines = [line.rstrip().split(',') for line in lines]
-    lines = np.array(lines).astype('int')
-    user_id, movie_id = lines[:,1:2], lines[:,2:3]
-    return user_id, movie_id
-
-def load_train(filename='input_data/train.csv'):
-    lines = open(filename).read().rstrip().split('\n')[1:]
-    lines = [line.rstrip().split(',') for line in lines]
-    lines = np.array(lines).astype('int')
-    user_id , movie_id, rating_id = lines[:,1:2], lines[:,2:3], lines[:,3:4]
-    return user_id, movie_id, rating_id
-
 def main(workdir='', action='train', modelpath=None, train_data=d_train_data, test_data=d_test_data, predict=None):
     if modelpath is None:
         modelpath = os.path.join(workdir, 'model.h5')
@@ -76,11 +62,7 @@ def main(workdir='', action='train', modelpath=None, train_data=d_train_data, te
 #         uid = uid[per]
 #         mid = mid[per]
 #         rid = rid[per]
-        # users in train.csv:   6040
-        # users in users.csv:   6040
-        # movies in train.csv:  3688
-        # movies in movie.csv:  3883
-        model = get_model(6041, 3689, 1024)
+        model = get_model(6041, 3884, 512)
         print(model.summary())
         tbcallback = TensorBoard(log_dir=os.path.join(workdir, 'graph'), histogram_freq=0, write_graph=True, write_images=True)
         earlystopping = EarlyStopping(monitor='val_loss', patience=20)
@@ -96,11 +78,10 @@ def main(workdir='', action='train', modelpath=None, train_data=d_train_data, te
         uid, mid = load_test(test_data)
         y = model.predict([uid, mid])
         y = y.flatten().clip(0, 5)
-        print(y.shape)
         with open(predict, 'w') as f:
             print('TestDataID,Rating', file=f)
             for k, v in enumerate(y):
-                print("%d,%.0f" % (k, v), file=f)
+                print("%d,%.0f" % (k+1, v), file=f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
