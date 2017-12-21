@@ -5,10 +5,12 @@ from keras.callbacks import ModelCheckpoint, TensorBoard, EarlyStopping
 import numpy as np
 import os
 import argparse
-from utils import load_train, load_test
+from utils import load_train, load_test, DataSet, loadpkl
 
 d_train_data = 'input_data/train.csv'
 d_test_data  = 'input_data/test.csv'
+d_epochs = 3
+d_batch_size = 32
 
 def get_model(n_users, n_items, latent_dim=6666):
     user_input = Input(shape=[1])
@@ -51,26 +53,31 @@ def get_emb(model):
     np.save('user_emb.npy', user_emb)
     np.save('movie_emb.npy', movie_emb)
 
-def main(workdir='', action='train', modelpath=None, train_data=d_train_data, test_data=d_test_data, predict=None):
+def main(workdir='', action='train', modelpath=None, train_data=d_train_data,
+        test_data=d_test_data, predict=None, epochs=d_epochs, batch_size=d_batch_size, prev=None):
     if modelpath is None:
         modelpath = os.path.join(workdir, 'model.h5')
     if predict is None:
         predict = os.path.join(workdir, 'predict.csv')
     if action == 'train':
         uid, mid, rid = load_train(train_data)
-#         per = np.random.permutation(len(uid))
-#         uid = uid[per]
-#         mid = mid[per]
-#         rid = rid[per]
-        model = get_model(6041, 3884, 512)
+        d = DataSet(uid=uid, mid=mid, rid=rid)
+        val = d.split(0, 0.2)
+        d.shuffle()
+        model = get_model(6041, 3953, 512)
         print(model.summary())
+        d.save(workdir, 'train.pkl')
+        val.save(workdir, 'val.pkl')
         tbcallback = TensorBoard(log_dir=os.path.join(workdir, 'graph'), histogram_freq=0, write_graph=True, write_images=True)
         earlystopping = EarlyStopping(monitor='val_loss', patience=20)
         checkpoint = ModelCheckpoint(filepath=modelpath,
                                      verbose=1,
                                      save_best_only=True,
                                      monitor='val_loss')
-        model.fit([uid, mid], rid, epochs=3, validation_split=0.2,
+        model.fit([d.uid, d.mid], d.rid,
+                validation_data=([val.uid, val.mid], val.rid),
+                epochs=epochs,
+                batch_size=batch_size,
                 callbacks=[checkpoint, tbcallback, earlystopping]
                 )
     elif action == 'test':
@@ -82,17 +89,40 @@ def main(workdir='', action='train', modelpath=None, train_data=d_train_data, te
             print('TestDataID,Rating', file=f)
             for k, v in enumerate(y):
                 print("%d,%.0f" % (k+1, v), file=f)
+    elif action == 'train2':
+        prev_model = os.path.join('models', prev, 'model.h5')
+        d = loadpkl('models', prev, 'train.pkl')
+        val = loadpkl('models', prev, 'val.pkl')
+        d.save(workdir, 'train.pkl')
+        val.save(workdir, 'val.pkl')
+        model = load_model(prev_model)
+        tbcallback = TensorBoard(log_dir=os.path.join(workdir, 'graph'), histogram_freq=0, write_graph=True, write_images=True)
+        earlystopping = EarlyStopping(monitor='val_loss', patience=20)
+        checkpoint = ModelCheckpoint(filepath=modelpath,
+                                     verbose=1,
+                                     save_best_only=True,
+                                     monitor='val_loss')
+        model.fit([d.uid, d.mid], d.rid,
+                validation_data=([val.uid, val.mid], val.rid),
+                epochs=epochs,
+                batch_size=batch_size,
+                callbacks=[checkpoint, tbcallback, earlystopping]
+                )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('model_name')
-    parser.add_argument('action', choices=['train','test'])
+    parser.add_argument('action', choices=['train','test', 'train2'])
     parser.add_argument('--load_model', default = None)
     parser.add_argument('--train_data', default = d_train_data)
+    parser.add_argument('--epochs', default = d_epochs, type=int)
+    parser.add_argument('--batch_size', default = d_batch_size, type=int)
     parser.add_argument('--test_data', default = d_test_data)
     parser.add_argument('--predict')
+    parser.add_argument('--previous')
     args = parser.parse_args()
     workdir = os.path.join('models', args.model_name)
     if not os.path.isdir(workdir) and args.action == 'train':
         os.makedirs(workdir)
-    main(workdir, args.action, args.load_model, args.train_data, args.test_data, args.predict)
+    main(workdir, args.action, args.load_model, args.train_data, args.test_data,
+            args.predict, args.epochs, args.batch_size, args.previous)
