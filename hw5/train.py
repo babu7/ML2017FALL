@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 from keras.models import Model, load_model
-from keras.layers import Input, Dense, Embedding, Flatten, Dot, Add, Concatenate
+from keras.layers import Input, Dense, Embedding, Flatten, Dot, Add, Concatenate, Dropout
 from keras.callbacks import ModelCheckpoint, TensorBoard, EarlyStopping
+from keras.optimizers import Adam
 import numpy as np
 import os
 import argparse
@@ -17,16 +18,20 @@ def get_model(n_users, n_items, latent_dim=6666):
     item_input = Input(shape=[1])
     user_vec = Embedding(n_users, latent_dim, embeddings_initializer='random_normal')(user_input)
     user_vec = Flatten()(user_vec)
+    user_vec = Dropout(0.3)(user_vec)
     item_vec = Embedding(n_items, latent_dim, embeddings_initializer='random_normal')(item_input)
     item_vec = Flatten()(item_vec)
+    item_vec = Dropout(0.3)(item_vec)
     user_bias = Embedding(n_users, 1, embeddings_initializer='zeros')(user_input)
     user_bias = Flatten()(user_bias)
+    user_bias = Dropout(0.3)(user_bias)
     item_bias = Embedding(n_items, 1, embeddings_initializer='zeros')(item_input)
     item_bias = Flatten()(item_bias)
+    item_bias = Dropout(0.3)(item_bias)
     r_hat = Dot(axes=1)([user_vec, item_vec])
     r_hat = Add()([r_hat, user_bias, item_bias])
     model = Model([user_input, item_input], r_hat)
-    model.compile(loss='mse', optimizer='adam')
+    model.compile(loss='mse', optimizer=Adam(lr=4e-4), metrics=['accuracy'])
     return model
 
 def nn_model(n_users, n_items, lattent_dim=7777):
@@ -61,9 +66,14 @@ def main(workdir='', action='train', modelpath=None, train_data=d_train_data,
         predict = os.path.join(workdir, 'predict.csv')
     if action == 'train':
         uid, mid, rid = load_train(train_data)
+        # Normalize
+        # mu = rid.mean()
+        # sd = rid.std()
+        # print('mu %s, sd %s' % (mu, sd))
+        # rid = (rid - mu)/sd
         d = DataSet(uid=uid, mid=mid, rid=rid)
-        val = d.split(0, 0.2)
         d.shuffle()
+        val = d.split(0, 0.1)
         model = get_model(6041, 3953, 512)
         print(model.summary())
         d.save(workdir, 'train.pkl')
@@ -84,11 +94,17 @@ def main(workdir='', action='train', modelpath=None, train_data=d_train_data,
         model = load_model(modelpath)
         uid, mid = load_test(test_data)
         y = model.predict([uid, mid])
+        # Normal
+        # uid, mid, rid = load_train(train_data)
+        # mu = rid.mean()
+        # sd = rid.std()
+        # print('mu %s, sd %s' % (mu, sd))
+        # y = y * sd + mu
         y = y.flatten().clip(0, 5)
         with open(predict, 'w') as f:
             print('TestDataID,Rating', file=f)
             for k, v in enumerate(y):
-                print("%d,%.0f" % (k+1, v), file=f)
+                print("%d,%f" % (k+1, v), file=f)
     elif action == 'train2':
         prev_model = os.path.join('models', prev, 'model.h5')
         d = loadpkl('models', prev, 'train.pkl')
