@@ -18,16 +18,16 @@ def get_model(n_users, n_items, latent_dim=6666):
     item_input = Input(shape=[1])
     user_vec = Embedding(n_users, latent_dim, embeddings_initializer='random_normal')(user_input)
     user_vec = Flatten()(user_vec)
-    user_vec = Dropout(0.3)(user_vec)
+    user_vec = Dropout(0.5)(user_vec)
     item_vec = Embedding(n_items, latent_dim, embeddings_initializer='random_normal')(item_input)
     item_vec = Flatten()(item_vec)
-    item_vec = Dropout(0.3)(item_vec)
+    item_vec = Dropout(0.5)(item_vec)
     user_bias = Embedding(n_users, 1, embeddings_initializer='zeros')(user_input)
     user_bias = Flatten()(user_bias)
-    user_bias = Dropout(0.3)(user_bias)
+    user_bias = Dropout(0.5)(user_bias)
     item_bias = Embedding(n_items, 1, embeddings_initializer='zeros')(item_input)
     item_bias = Flatten()(item_bias)
-    item_bias = Dropout(0.3)(item_bias)
+    item_bias = Dropout(0.5)(item_bias)
     r_hat = Dot(axes=1)([user_vec, item_vec])
     r_hat = Add()([r_hat, user_bias, item_bias])
     model = Model([user_input, item_input], r_hat)
@@ -52,11 +52,12 @@ def nn_model(n_users, n_items, lattent_dim=7777):
 # Get embedding
 def get_emb(model):
     user_emb = np.array(model.layers[2].get_weights()).squeeze()
-    print('user embedding shape: ' % str(user_emb.shape))
+    print('user embedding shape: %s' % str(user_emb.shape))
     movie_emb = np.array(model.layers[3].get_weights()).squeeze()
-    print('movie embedding shape: ' % str(movie_emb.shape))
-    np.save('user_emb.npy', user_emb)
-    np.save('movie_emb.npy', movie_emb)
+    print('movie embedding shape: %s' % str(movie_emb.shape))
+    # np.save('user_emb.npy', user_emb)
+    # np.save('movie_emb.npy', movie_emb)
+    return user_emb, movie_emb
 
 def main(workdir='', action='train', modelpath=None, train_data=d_train_data,
         test_data=d_test_data, predict=None, epochs=d_epochs, batch_size=d_batch_size, prev=None):
