@@ -7,7 +7,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
-m = load_model('models/dim512/model.h5')
+m = load_model('models/d512-dropless-slow/model.h5')
 u, m = get_emb(m)
 def draw(x, y):
     vis_data = TSNE(n_components=2).fit_transform(x)
