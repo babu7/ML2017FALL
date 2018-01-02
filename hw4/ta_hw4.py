@@ -10,7 +10,7 @@ from keras.models import Model
 from keras.layers import Input, GRU, LSTM, Dense, Dropout, Bidirectional
 from keras.layers.embeddings import Embedding
 from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard, EarlyStopping
 
 import keras.backend.tensorflow_backend as K
 import tensorflow as tf
@@ -180,11 +180,12 @@ def main():
                                      save_weights_only=True,
                                      monitor='val_acc',
                                      mode='max' )
+        tbcallback = TensorBoard(log_dir=os.path.join('graph'), histogram_freq=0, write_graph=True, write_images=True)
         history = model.fit(X, Y,
                             validation_data=(X_val, Y_val),
                             epochs=args.nb_epoch,
                             batch_size=args.batch_size,
-                            callbacks=[checkpoint, earlystopping] )
+                            callbacks=[checkpoint, earlystopping, tbcallback] )
         hist_path = os.path.join(args.save_dir,args.model, 'hist.pkl')
         pk.dump(history.history, open(hist_path, 'wb'))
 
