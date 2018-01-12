@@ -10,7 +10,6 @@ matplotlib.use('agg')
 from matplotlib import pyplot as plt
 from matplotlib.font_manager import FontManager
 from pylab import mpl
-import subprocess
 from adjustText import adjust_text
 
 multi_tsne = True

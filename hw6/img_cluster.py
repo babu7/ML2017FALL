@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 from shutil import copyfile
 
-from keras.models import Model, load_model
+from keras.models import Model, Sequential, load_model
 from keras.layers import Input, Dense, Dropout, Flatten, Reshape
 from keras.layers import Conv2D, UpSampling2D, MaxPooling2D
 from keras.callbacks import ModelCheckpoint, TensorBoard, EarlyStopping
@@ -14,7 +14,7 @@ from keras.optimizers import Adam
 from sklearn.cluster import KMeans
 from utils import DataSet, load_img, load_test_ls, get_test
 
-multi_tsne = True
+multi_tsne = False
 if multi_tsne:
     from MulticoreTSNE import MulticoreTSNE as TSNE
 else:
@@ -101,6 +101,11 @@ def denoisy_cnn():
 def get_model():
     return dnn()
 
+def get_best_encoder():
+    model = load_model('models/dnn-l4-h64/model.h5')
+    encoder = Sequential(model.layers[0:2])
+    return encoder
+
 def main(args):
     workdir = os.path.join('models', args.model)
     modelpath = os.path.join(workdir, 'model.h5')
@@ -182,6 +187,21 @@ def main(args):
                 else:
                     print("%d,0" % i, file=f)
 
+    if action == 'test_best':
+        encoder = get_best_encoder()
+        img = load_img(args.train_data)
+        img_encoded = encoder.predict(img)
+        img_encoded = img_encoded.reshape(img_encoded.shape[0], -1)
+        kmeans = KMeans(n_clusters=2, n_init=20, max_iter=500, n_jobs=4).fit(img_encoded)
+        y = kmeans.labels_
+        y = get_test(y, load_test_ls(args.test_ls))
+        with open(args.predict, 'w') as f:
+            print("ID,Ans", file=f)
+            for i in range(y.shape[0] // 2):
+                if y[i*2] == y[i*2+1]:
+                    print("%d,1" % i, file=f)
+                else:
+                    print("%d,0" % i, file=f)
     if action == 'test':
         m, encoder = importlib.import_module(model_arch.rstrip('.py').replace('/','.')).get_model()
         print('Loading data ...')
@@ -216,7 +236,7 @@ def main(args):
                 else:
                     print("%d,0" % i, file=f)
 
-    if action == 'plot':
+    if action == 'plot_raw':
         autoencoder, encoder = importlib.import_module(model_arch.rstrip('.py').replace('/','.')).get_model()
         autoencoder.load_weights(modelpath)
         img = load_img()
@@ -246,16 +266,39 @@ def main(args):
             ax.get_yaxis().set_visible(False)
         fig = plt.gcf()
         fig.savefig(os.path.join(workdir, 'tmp.png'))
+    elif action == 'visual':
+        import matplotlib
+        matplotlib.use('agg')
+        import matplotlib.pyplot as plt
+        encoder = get_best_encoder()
+        raw_img = np.load('input_data/visualization.npy')/255
+        raw_img_vec = encoder.predict(raw_img)
+        embs2d = TSNE(n_components=2, n_iter=4000, n_jobs=8, verbose=1).fit_transform(raw_img_vec)
+        color = []
+        predict = False
+        if predict:
+            kmeans = KMeans(n_clusters=2, n_init=20, max_iter=500, n_jobs=4).fit(raw_img_vec)
+            y = kmeans.labels_
+            for i in range(10000):
+                color.append('r' if y[i] == 0 else 'b')
+        else:
+            for i in range(10000):
+                if i < 5000: color.append('r')
+                else: color.append('b')
+
+        plt.scatter(embs2d[:,0], embs2d[:,1], c=color, s=1)
+        plt.tight_layout()
+        plt.savefig('visualize.png')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('model')
-    parser.add_argument('action', choices=['train','test','plot', 'tsne', 'train2'])
+    parser.add_argument('action', choices=['train','test', 'test_best','plot_raw', 'tsne', 'train2', 'visual'])
     parser.add_argument('--load_model', default = None)
     parser.add_argument('--train_data', default = None)
     parser.add_argument('--epochs', default = 3, type=int)
     parser.add_argument('--batch_size', default = 32, type=int)
-    parser.add_argument('--test_data', default = None)
+    parser.add_argument('--test_ls', default = None)
     parser.add_argument('--predict')
     args = parser.parse_args()
     workdir = os.path.join('models', args.model)
